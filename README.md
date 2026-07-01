@@ -23,6 +23,12 @@ Ollama  qwen2.5:14b        → reads the top matches, writes the answer (generat
 - **PGLite** is Postgres compiled to run in-process, so there is no database server to manage.
 - **gbrain** is the CLI that wires them together and does the search + synthesis.
 
+> **The one gotcha:** gbrain's native `ollama` provider is *embeddings-only* — it
+> has no chat capability — so `chat_model: ollama:...` silently degrades to
+> "no LLM available". Generation is routed through gbrain's OpenAI-compatible
+> `openrouter` recipe, with its base URL repointed at Ollama. See
+> [`explanatory-docs/05-generation-model.md`](explanatory-docs/05-generation-model.md).
+
 ## How this repo is organized
 
 - [`explanatory-docs/`](explanatory-docs/) — one short doc per setup step, explaining
@@ -51,10 +57,20 @@ gbrain init --pglite \
   --embedding-model ollama:nomic-embed-text \
   --embedding-dimensions 768
 
-# 5. Point generation at the local LLM
-gbrain config set chat_model ollama:qwen2.5:14b
+# 5. Route generation through the openrouter recipe, pointed at Ollama.
+#    (chat_model: ollama:... does NOT work — the ollama recipe has no chat.)
+export OPENROUTER_BASE_URL=http://localhost:11434/v1   # send openrouter calls to Ollama
+export OPENROUTER_API_KEY=ollama                       # dummy; Ollama ignores auth
+gbrain config set chat_model     openrouter:qwen2.5:14b
+gbrain config set models.default openrouter:qwen2.5:14b
 
-# 6. Verify
+# 6. Verify — fully local (Ollama serves both /v1/embeddings and /v1/chat/completions)
 gbrain providers test --model ollama:nomic-embed-text
-gbrain doctor
+gbrain import ~/notes
+gbrain think "..."
 ```
+
+The four `export`s live in [`env.sh`](env.sh) — `source` it in each shell (or add
+that line to `~/.zshrc`). Base URL and key must be env vars: gbrain reads
+`OPENROUTER_BASE_URL` from the environment, and `provider_base_urls.*` set via
+`gbrain config set` is a no-op (it writes a plane the gateway never reads).
