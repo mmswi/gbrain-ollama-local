@@ -128,7 +128,10 @@ Fewer moving parts, better prose.
 We chose full-local on purpose — no key, nothing leaves the laptop — and paid for
 it with a workaround and a smaller model.
 
-One thing stays cloud-shaped even so: pointing `models.default` at a 14B local
-model means gbrain's agentic features (`gbrain agent run`, autopilot) run on
-qwen, which does not tool-loop as well as a frontier model. `gbrain doctor` warns
-about exactly this. For plain `think` over your notes, it is a non-issue.
+One thing stays imperfect even so: pointing `models.default` at a local model
+means gbrain's agentic features (`gbrain agent run`, autopilot) run on qwen.
+`gbrain doctor` flags it — not as broken, but because Ollama has no prompt
+caching, so long subagent loops "run hot" (cost/time scales with conversation
+length), and it suggests keeping just that one tier on a cloud model:
+`gbrain config set models.tier.subagent anthropic:claude-sonnet-4-6`. For plain
+`think` over your notes, none of this applies.
