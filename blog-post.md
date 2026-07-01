@@ -13,6 +13,44 @@ Along the way I hit one trap that every "just use Ollama" guide gets wrong. I
 will show you the trap, because understanding why it fails is the fastest way to
 understand how the whole thing fits together.
 
+## First: what is gbrain, and why bother
+
+gbrain is a searchable memory that answers questions about your own notes — and
+cites the note it used.
+
+Not a note app. Not a generic chatbot. Something in the gap between them.
+
+You feed it decisions, people, meetings, whole documents. Later you ask a
+question, and it finds the relevant notes and writes an answer built from *your*
+pages.
+
+Why that gap matters: the two tools you already have both fail, in opposite ways.
+
+Search gives you ten links and makes you do the reading.
+
+A chatbot writes a confident answer, but it has never seen your notes — ask it
+"what did *we* decide about pricing?" and it guesses.
+
+gbrain reads your actual pages and answers from them:
+
+```
+you:     "Why was the base tier price raised?"
+gbrain:  "Raised from $19 to $29 because support costs per seat grew and the
+          $19 tier was unprofitable below 50 seats [pricing-decision]."
+```
+
+The answer is built from your note, and it names the page, so you can trust it.
+And when it does not know, it says so — an honest "I don't have that" instead of
+a confident wrong answer.
+
+So the reasons to run it: your context stops evaporating, you can ask across
+everything you have ever written at once, and — wired into a coding agent — it
+gives that agent a memory so it stops re-asking what it could look up. In this
+build, all of that stays on your laptop.
+
+One caveat worth saying up front: an empty brain answers nothing, so day one
+feels broken. It earns its keep once capturing becomes a habit.
+
 Everything below was built and verified on an Apple M5 with 32 GB. One running
 example carries through the whole post: a folder with two notes in it.
 
@@ -323,6 +361,86 @@ One honest caveat. The launchd daemon starts with a clean environment — it doe
 and it falls back to unloading an idle model after a few minutes. That is exactly
 why `GBRAIN_QUERY_EMBED_TIMEOUT_MS=30000` matters: it lets the query embedding
 wait out the occasional cold reload instead of timing out.
+
+## Now actually use it: locally and globally
+
+You have a running brain. Here is how you talk to it.
+
+Everything you do is one of two things: putting knowledge *in*, or getting it
+*out*.
+
+```
+   PUT IN                          GET OUT
+   capture / import / put / sync   search / query / think
+        ↓                                    ↑
+              ~/.gbrain/brain.pglite
+```
+
+And one rule governs all of it: **gbrain only saves what it is told to save.**
+Nothing is captured automatically — not your terminal, not your chats. Text
+enters the brain when a write command runs, and only then.
+
+### Locally, from the terminal
+
+Putting things in:
+
+```bash
+gbrain capture "Decided to run gbrain fully local: Ollama + PGLite, no cloud."
+gbrain import ~/notes/                 # a folder of markdown you already have
+gbrain sync --repo ~/code/myproject    # a whole git repo
+```
+
+Getting things out — and the three commands are not the same:
+
+```bash
+gbrain search "pricing"                    # ranked pages, keyword — fast, no LLM
+gbrain query  "why was the price raised?"  # hybrid (meaning + keywords), ranked pages
+gbrain think  "why was the price raised?"  # a written, cited answer — uses the LLM
+```
+
+The practical difference, which I checked by watching Ollama's log: `search` and
+`query` only ever hit `/v1/embeddings` — they hand you matching pages and need no
+chat model. `think` is the only one that calls qwen to *write* an answer. So most
+of your day-to-day retrieval does not even touch the generation model.
+
+### Globally, from your coding agent
+
+This is where it stops being a CLI and becomes a memory your agent shares. Wire
+it in over MCP:
+
+```bash
+claude mcp add gbrain \
+  -e OPENROUTER_BASE_URL=http://localhost:11434/v1 \
+  -e OPENROUTER_API_KEY=ollama \
+  -e GBRAIN_QUERY_EMBED_TIMEOUT_MS=30000 \
+  -- gbrain serve
+```
+
+Those `-e` flags are not optional on a local setup, and the reason ties back to
+everything above. A coding agent launches `gbrain serve` with a clean
+environment — it does not read your `~/.zshrc`. Skip the flags and brain *search*
+still works (embeddings need no env), but *synthesis* over MCP falls back to "no
+LLM available." The flags hand the local route straight to the subprocess.
+
+Then teach the agent to use it, by pasting this into `CLAUDE.md`:
+
+```markdown
+## Brain-first protocol
+You have a knowledge brain over MCP. Before answering about people, companies,
+decisions, or past context: (1) search/query the brain first; (2) write new
+decisions or ideas back with put_page; (3) cite the page you used.
+```
+
+Now the agent searches before it asks you, and writes decisions back as you work.
+If you use [gstack](https://github.com/garrytan/gstack), two skills automate the
+whole thing: `/setup-gbrain` does the wire-up and writes that protocol for you,
+and `/sync-gbrain` indexes a code repo so `gbrain search` works semantically
+across the codebase.
+
+And to close the loop on the obvious worry: connecting your agent does *not*
+record the conversation. The agent saves something only when it calls `put_page`
+— decisions and new ideas, nothing else. You stay in control of what your brain
+remembers.
 
 ## The honest tradeoffs
 
