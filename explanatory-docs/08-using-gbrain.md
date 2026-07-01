@@ -78,10 +78,10 @@ gbrain backlinks pricing-decision   # what links to this page
 This is where it gets powerful: your agent (Claude Code, Codex, Cursor) can call
 the brain itself, over MCP.
 
-### Wire it up
+### Wire it up (globally)
 
 ```bash
-claude mcp add gbrain \
+claude mcp add gbrain -s user \
   -e OPENROUTER_BASE_URL=http://localhost:11434/v1 \
   -e OPENROUTER_API_KEY=ollama \
   -e GBRAIN_QUERY_EMBED_TIMEOUT_MS=30000 \
@@ -89,7 +89,29 @@ claude mcp add gbrain \
 ```
 
 The agent spawns `gbrain serve` as a subprocess and gets tools like `search`,
-`query`, `put_page`, and `find_experts`.
+`query`, `think`, `put_page`, and `find_experts` (92 in total).
+
+**Scope: `-s user` = global.** It writes to `~/.claude.json`, so the brain is
+available in *every* project on this machine. That file belongs to your macOS
+user, not your Anthropic account, so it stays available under any Claude login you
+use. Drop `-s user` to register for the current project only; use `-s project` to
+share it with a repo's team via a committed `.mcp.json`.
+
+Two gotchas:
+
+- **MCP loads at startup.** After `claude mcp add`, restart Claude Code (or start a
+  fresh session) before the tools appear. Verify with `claude mcp get gbrain`
+  (look for `✔ Connected`).
+- **PATH.** An MCP subprocess may not inherit your shell's PATH. If the agent
+  can't find `gbrain`, use the absolute path from `command -v gbrain` in place of
+  `gbrain serve`.
+
+**Same machine only.** Everything — the `gbrain` binary, your brain file at
+`~/.gbrain/brain.pglite`, and Ollama — lives on this Mac. On a *different
+computer* none of it exists; you would either install gbrain + Ollama there too
+(a separate brain), or run this Mac's brain as a server (`gbrain serve --http`)
+and `gbrain connect` to it from the other machine. Sharing one brain across
+machines needs Supabase (Postgres) instead of local PGLite.
 
 **Why the `-e` flags matter on this local setup.** A coding agent launches
 `gbrain serve` with a clean environment — it does *not* read your `~/.zshrc`. So

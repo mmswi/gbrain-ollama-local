@@ -406,15 +406,23 @@ of your day-to-day retrieval does not even touch the generation model.
 ### Globally, from your coding agent
 
 This is where it stops being a CLI and becomes a memory your agent shares. Wire
-it in over MCP:
+it in over MCP, globally:
 
 ```bash
-claude mcp add gbrain \
+claude mcp add gbrain -s user \
   -e OPENROUTER_BASE_URL=http://localhost:11434/v1 \
   -e OPENROUTER_API_KEY=ollama \
   -e GBRAIN_QUERY_EMBED_TIMEOUT_MS=30000 \
   -- gbrain serve
 ```
+
+`-s user` is what makes it global. It writes the registration to `~/.claude.json`,
+so the brain is available in *every* project on this machine — and because that
+file belongs to your Mac user, not your Anthropic login, it stays available no
+matter which Claude account you sign in with. Drop `-s user` and it registers for
+the current project only. (If the agent later reports it can't find `gbrain`, an
+MCP subprocess may not have your shell's PATH — swap `gbrain serve` for the
+absolute path from `command -v gbrain`.)
 
 Those `-e` flags are not optional on a local setup, and the reason ties back to
 everything above. A coding agent launches `gbrain serve` with a clean
