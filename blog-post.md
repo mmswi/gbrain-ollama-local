@@ -450,6 +450,60 @@ record the conversation. The agent saves something only when it calls `put_page`
 — decisions and new ideas, nothing else. You stay in control of what your brain
 remembers.
 
+## Is it fast enough for coding?
+
+The honest first reaction to a local setup is: I asked a question and waited ten
+seconds. Won't that wreck my flow?
+
+It won't, and the reason is in the numbers. Measured on this brain:
+
+| Command | Wall time | What Ollama did |
+|---|---|---|
+| `gbrain search "..."` | 1.1s | embeddings only (3–5ms) |
+| `gbrain query "..."` | 0.6s | embeddings only (3–7ms) |
+| `gbrain think "..."` | 8.6s | embeddings (2ms) + **chat ~5s** |
+
+Read that with one question: where does the time go?
+
+Not the embedding. That is 3 milliseconds.
+
+Not the database. That is instant.
+
+The 8.6 seconds is entirely qwen2.5:14b *writing* the answer, a token at a time,
+on your laptop. A 14B local model is slower than a cloud one. That is the price of
+nothing leaving the machine.
+
+But look at *which* command pays it. Only `think`.
+
+And your coding agent does not call `think`.
+
+When Claude uses the brain while you code, it calls `search` and `query` — it
+*fetches* your notes and reasons over them with its own fast model. It does not
+ask the local 14B to write prose. Fetching is sub-second.
+
+It is even faster than the table looks. Most of that 0.6–1.1s is the `gbrain` CLI
+booting a fresh process. Over MCP, `gbrain serve` stays resident, so that cost is
+paid once at session start, not per call. The agent's real lookups are an
+embedding plus a database query — tens of milliseconds.
+
+So the picture during development: a brain lookup returns in well under a second,
+a rounding error next to the agent's own thinking time. The eight-second wait only
+happens when *you* deliberately ask the brain to compose an answer with `think` —
+not something the agent's loop does.
+
+If you want `think` snappier too, three levers:
+
+- **A smaller chat model.** `gbrain config set chat_model openrouter:qwen2.5:7b`
+  (after `ollama pull qwen2.5:7b`) roughly halves generation time, for slightly
+  weaker answers.
+- **Keep it warm.** The cold runs earlier were 17–21s because qwen had to load
+  into memory first; warm runs are 7–9s. An idle model unloads after a few
+  minutes, so the first `think` after a break pays that reload. It never touches
+  `search`/`query`.
+- **Cloud chat for `think` only.** Point just the chat model at a real key if you
+  want fast, high-quality synthesis and don't mind that one step leaving the
+  machine. Retrieval stays fully local.
+
 ## The honest tradeoffs
 
 Real understanding includes the limits, so here they are.
