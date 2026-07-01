@@ -338,6 +338,13 @@ smaller model.
 embedding model will find relevant notes more reliably on a large, messy brain.
 For a few thousand notes you will not notice. For a hundred thousand, you might.
 
+**You are borrowing the OpenRouter namespace machine-wide.** Putting
+`OPENROUTER_BASE_URL` and `OPENROUTER_API_KEY=ollama` in `~/.zshrc` sets them for
+*every* program in *every* shell. The day you install something that genuinely
+uses OpenRouter, it will quietly point at your Ollama with a dummy key and fail in
+a confusing way. If that day comes, move these exports out of `~/.zshrc` and
+`source env.sh` only when you use gbrain.
+
 **Agentic features run hot.** Pointing `models.default` at a local model means
 gbrain's agent loops (`gbrain agent run`, autopilot) run on qwen, which has no
 prompt caching — so long loops cost more time. `gbrain doctor` warns about
