@@ -13,3 +13,4 @@ Each doc lines up with one commit in this repo.
 | `04-init-brain.md` | Create the local PGLite brain on Ollama embeddings |
 | `05-generation-model.md` | Point generation at the local LLM |
 | `06-verify.md` | Prove it runs with no external calls |
+| `07-persistence.md` | Make the daemon + env survive a reboot |

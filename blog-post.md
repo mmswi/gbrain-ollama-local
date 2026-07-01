@@ -273,6 +273,57 @@ Two requests. Both to `127.0.0.1`. No Anthropic. No OpenAI. No key that reaches
 the internet. That log is the whole point of the exercise — it is the difference
 between "I think it is local" and "I watched it be local."
 
+## Making it survive a reboot
+
+Everything so far works *in this shell*. Close the terminal and two things
+evaporate: the Ollama daemon (I started it by hand) and the four environment
+variables (they only live in a file called `env.sh`). A real install has to
+outlive the session. Two steps do that, and it is worth knowing what each one
+actually produces.
+
+**Step 1 — turn Ollama into a background service.**
+
+```bash
+brew services start ollama
+```
+
+This does not just run Ollama. It writes a launchd agent — a small file at
+`~/Library/LaunchAgents/homebrew.mxcl.ollama.plist` — and hands it to macOS.
+launchd is the thing that starts programs at login and restarts them if they die.
+
+So what this *produces* is a daemon that is always there: it comes up when you
+log in, relaunches itself if it crashes, and writes its log to
+`/opt/homebrew/var/log/ollama.log`. You never type `ollama serve` again. `brew
+services list` shows it as `started`.
+
+```
+ollama   started   ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist
+```
+
+**Step 2 — load the environment in every shell.**
+
+The four `export`s live in `env.sh`. To make every new terminal pick them up, add
+one line to `~/.zshrc` (the file your shell runs on startup):
+
+```bash
+source ~/Projects/gbrain-ollama/env.sh
+```
+
+What this *produces* is that `OPENROUTER_BASE_URL`, `OPENROUTER_API_KEY`, and the
+two timeout/keep-alive vars are set in every interactive shell you open. gbrain's
+CLI reads them from the environment, so `gbrain think` finds the local route
+without you sourcing anything by hand.
+
+The test that proves both worked: open a brand-new terminal, type nothing but
+`gbrain think "..."`, and watch `/opt/homebrew/var/log/ollama.log`. You should see
+two `127.0.0.1` requests and a cited answer.
+
+One honest caveat. The launchd daemon starts with a clean environment — it does
+*not* read `env.sh` — so `OLLAMA_KEEP_ALIVE` from your shell does not reach it,
+and it falls back to unloading an idle model after a few minutes. That is exactly
+why `GBRAIN_QUERY_EMBED_TIMEOUT_MS=30000` matters: it lets the query embedding
+wait out the occasional cold reload instead of timing out.
+
 ## The honest tradeoffs
 
 Real understanding includes the limits, so here they are.
