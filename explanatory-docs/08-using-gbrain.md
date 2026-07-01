@@ -138,3 +138,153 @@ else. You stay in control of what your brain remembers.
 
 One file: `~/.gbrain/brain.pglite`. Back it up, copy it to another Mac, or delete
 it to start over. That folder is your entire brain.
+
+## Full command reference
+
+Every command `gbrain 0.42.53.0` exposes, grouped the way `gbrain --help` groups
+them. Prefix each with `gbrain`, and run `gbrain <command> --help` for the details
+of any one. The handful you will actually use day-to-day are marked ★.
+
+**Setup & health**
+
+```text
+init [--pglite|--supabase|--url]      create a brain (PGLite = local, no server)
+migrate --to <supabase|pglite>        move a brain between engines
+upgrade                               self-update gbrain
+check-update [--json]                 check for a new version
+doctor [--json] [--fast]           ★  health check (embeddings, pgvector, skills…)
+integrations [subcommand]             manage integration recipes (senses + reflexes)
+```
+
+**Get content in**
+
+```text
+capture [content] [--file P] [--stdin]  ★ single entrypoint to add content (→ inbox/)
+import <dir> [--no-embed]               ★ bulk-import a markdown directory
+put <slug> [< file.md]                    write/update one page
+sync [--repo P] [--watch] [--install-cron] git repo → brain, incremental
+embed [<slug>|--all|--stale]              (re)generate embeddings
+```
+
+**Read, search, ask**
+
+```text
+search <query>                     ★  keyword search — ranked pages, no LLM
+query <question> [--no-expand]     ★  hybrid search, meaning + keywords (alias: ask)
+think <question>                   ★  synthesized, cited answer (uses the LLM)
+get <slug>                            read one page
+list [--type T] [--tag T] [-n N]      list pages
+```
+
+**Pages & versions**
+
+```text
+delete <slug>                         delete a page
+history <slug>                        page version history
+revert <slug> <version-id>            revert to a prior version
+```
+
+**The graph: links, tags, timeline**
+
+```text
+link <from> <to> [--link-type T]      create a typed link (alias: link-add)
+unlink <from> <to>                    remove a link (alias: link-rm)
+link-sources                          list link provenances + edge counts
+backlinks <slug>                      incoming links
+graph <slug> [--depth N]              traverse the link graph
+graph-query <slug> [--type T] [--direction in|out|both]  edge-filtered traversal
+tags <slug> / tag <slug> <t> / untag <slug> <t>          list / add / remove tags
+timeline [<slug>]                     view timeline
+timeline-add <slug> <date> <text>     add a timeline entry
+```
+
+**Ideate (brainstorming over your brain)**
+
+```text
+brainstorm <question> [--json]        bisociation idea generator (hybrid + far-set + judge)
+lsd <question> [--json]               Lateral Synaptic Drift — far-from-obvious ideas
+```
+
+**Code indexing (for a synced codebase)**
+
+```text
+code-def <symbol> [--lang l]          find a symbol's definition
+code-refs <symbol> [--lang l]         find references to a symbol
+code-callers <symbol>                 who calls this symbol
+code-callees <symbol>                 what this symbol calls
+query <q> --lang <l> | --symbol-kind <k>  filter hybrid search by language / symbol type
+reconcile-links [--dry-run]           recompute doc↔impl edges
+reindex-code [--source id] [--yes]    reindex code pages
+sync --strategy code                  sync code files into the brain
+```
+
+**Multiple sources / repos**
+
+```text
+sources list                          show registered sources
+sources add <id> --path <p>           register a source
+sources remove <id>                   remove a source + its pages
+sync --all | --source <id>            sync all sources / one source
+```
+
+**Export & files**
+
+```text
+export [--dir ./out/]                 export the brain to markdown
+files list [slug]                     list stored files
+files upload <file> --page <slug>     attach a file to a page
+files upload-raw <file> --page <s>    smart upload (size routing + redirect)
+files signed-url <path>               1-hour signed URL
+files sync <dir> / files verify       bulk upload / verify uploads
+```
+
+**Maintenance & tools**
+
+```text
+extract <links|timeline|all>          extract links/timeline (idempotent)
+lint <dir|file> [--fix]               catch LLM artifacts, bad frontmatter, placeholder dates
+orphans [--json] [--count]            pages with no inbound links
+check-backlinks <check|fix> [dir]     find/fix missing backlinks
+salience [--days N] [--kind P]        pages ranked by emotional + activity salience
+anomalies [--since D] [--sigma N]     cohort-based statistical anomalies
+transcripts recent [--days N]         recent raw local transcripts
+dream [--dry-run] [--json]            run the overnight maintenance cycle once
+publish <page.md> [--password]        shareable HTML (strips private data, optional AES-256)
+report --type <name> --content ...    save a timestamped report to the brain
+check-resolvable [--json] [--fix]     validate the skill tree (reachability/MECE/DRY)
+```
+
+**Background jobs (Minions — Postgres/Supabase only)**
+
+```text
+jobs submit <name> [--params JSON]    submit a background job [--follow]
+jobs list | get <id> | cancel <id> | retry <id>   manage jobs
+jobs prune [--older-than 30d] | stats | work      clean / dashboard / worker daemon
+```
+
+**Serve & connect an agent**
+
+```text
+serve                              ★  MCP server over stdio (what `claude mcp add` runs)
+serve --http [--port N]               HTTP MCP server with OAuth 2.1
+connect <mcp-url> --token <t> [--install]  wire this machine to a remote gbrain
+watch [--json]                        pipe conversation turns in, stream brain pages out
+call <tool> '<json>'                  raw tool invocation
+--tools-json                          tool discovery (JSON)
+```
+
+**Admin**
+
+```text
+stats                                 brain statistics
+health                                brain health dashboard
+features [--json] [--auto-fix]        scan usage, recommend unused features
+autopilot [--repo] [--interval N]     self-maintaining brain daemon
+config [show|get|set] <key> [val]  ★  brain config (e.g. config set chat_model …)
+storage status [--json]               storage tier status and health
+version                               version info
+```
+
+> Note: `think` is not printed in `gbrain --help`'s summary, but it is a real,
+> working command — it is the one that produces a synthesized answer with
+> citations. `search`, `query`, and `ask` return ranked pages; `think` writes prose.
