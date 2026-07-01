@@ -504,6 +504,244 @@ If you want `think` snappier too, three levers:
   want fast, high-quality synthesis and don't mind that one step leaving the
   machine. Retrieval stays fully local.
 
+## Want a better brain, for free?
+
+qwen2.5:14b is fine, but it is not Claude. So the obvious wish: can I just use the
+good model I am already using in Claude Code, without a separate API key?
+
+Directly, no — for two concrete reasons.
+
+gbrain never asks the host to think for it. Even the `think` *tool*, called over
+MCP, runs gbrain's own configured model, not Claude Code's.
+
+And a Claude subscription is not a reusable API key. gbrain's `anthropic` recipe
+wants a standalone `ANTHROPIC_API_KEY`, which is pay-per-token — a separate, paid
+thing, not the login you already have.
+
+But the outcome you want *is* free, and it is what the MCP wiring is actually for.
+You flip who does the writing.
+
+`gbrain think` makes *gbrain* synthesize, on the slow local model. Instead, let
+Claude Code be the reasoning layer:
+
+```
+gbrain retrieves   — search / query, local, fast, free
+Claude Code writes — with the frontier model you already use
+```
+
+So inside Claude Code you say "search my brain for X and explain it." Claude calls
+the fast `search` tool, pulls your pages into its own context, and writes the
+answer itself — Claude quality, no extra key, no local 14B. That is "use the
+Claude Code model over my brain, for free," and the brain-first protocol already
+nudges the agent toward `search`/`query` instead of the local `think`.
+
+The honest caveat: those retrieved snippets go into Claude Code's context, so that
+one step reaches Anthropic. No new key, the same trust boundary you already
+accepted by using Claude Code — but not "nothing leaves the machine." Storage and
+retrieval stay local.
+
+And if you want gbrain's *own* `think` better, with no host in the loop:
+
+- **Better, still fully local, still free** — a bigger local model. `gpt-oss:20b`
+  (~13GB) sits comfortably on 32GB and beats 14B; `qwen2.5:32b` (~20GB) is higher
+  quality still, but tight on RAM and slower.
+
+  ```bash
+  ollama pull gpt-oss:20b
+  gbrain config set chat_model     openrouter:gpt-oss:20b
+  gbrain config set models.default openrouter:gpt-oss:20b
+  ```
+
+- **Better, free, but not local** — a free cloud tier. Google Gemini (free key
+  from AI Studio) or Groq (free tier); gbrain ships `google` and `groq` recipes.
+  Higher quality than qwen, free within rate limits, but your notes go to that
+  provider. Grab a key and set `chat_model` to `google:<model>` or `groq:<model>`
+  (exact names via `gbrain providers env google`).
+
+For coding, the best option is not in that last list at all — it is the one from a
+few paragraphs up: **let Claude Code do the writing.** You are already sitting
+inside the strong model, so let gbrain fetch and let Claude synthesize. Best
+quality, no extra key. That is what connecting the brain was for in the first
+place — the brain is Claude's memory to look things up in, not a second, weaker
+model trying to answer in its place.
+
+## How Claude actually talks to your brain
+
+This is the part that surprised me, and it changes how you use the whole thing.
+
+You do not run `gbrain think`.
+
+You do not even type the word gbrain.
+
+You ask Claude a question in plain English — "when's my birthday?" — and it answers
+from your notes. No command. So how does that work?
+
+### Claude learns your brain exists, at startup
+
+When you ran `claude mcp add gbrain … -- gbrain serve`, you did not just save a
+line of config. You told Claude Code: "there is a tool server here — launch it and
+ask it what it can do."
+
+So every time Claude Code starts, it:
+
+1. Spawns `gbrain serve` as a background subprocess.
+2. Asks it, over MCP, "what tools do you offer?"
+3. Gets back a list — 92 of them: `search`, `query`, `put_page`, `get_page`, and
+   so on, each with a one-line description of what it does.
+
+Now your brain is just *there*, in Claude's toolbox, the same way it knows it can
+read a file or run a command.
+
+### What happens when you ask
+
+Watch the birthday question flow through:
+
+```
+you (in Claude Code):  "when's my birthday?"
+      ↓
+Claude decides a brain lookup would help, and calls a tool:
+      search({ query: "birthday" })              ← Claude → gbrain
+      ↓
+gbrain runs it locally: embed the query (Ollama, ~3ms), search PGLite
+      ↓
+      returns the page text: "on 3rd of march… born 1990"   ← gbrain → Claude
+      ↓
+Claude reads that in its own context and writes:
+      "March 3rd; born in 1990, so you'll turn 36 this year."
+```
+
+Two things to notice.
+
+**Claude chose to call the tool.** You did not tell it to. It saw a question about
+you, remembered it has a brain tool, and reached for it — partly because the tool's
+description says it searches your knowledge, and partly because the brain-first
+protocol you pasted into `CLAUDE.md` tells it to look there first.
+
+**gbrain never wrote a sentence.** It embedded, searched, and handed back a raw
+page. The reasoning — the age math, "you'll turn 36" — is Claude's. gbrain was the
+memory; Claude was the mind.
+
+### Why it works: MCP is just a tool protocol
+
+There is no magic here. MCP (Model Context Protocol) is a standard way for a
+program to expose tools to an LLM. gbrain speaks it; Claude Code speaks it. When
+they connect, Claude gets a menu of gbrain's tools with descriptions, and from
+then on it can call any of them, read the result, and continue — the same tool-use
+loop it runs for reading files or executing shell commands.
+
+So "talking to your brain" is not a special mode. Your brain simply became one more
+tool Claude picks up when a question calls for it.
+
+### The practical upshot
+
+Stop thinking in `gbrain` commands. Once it is wired in:
+
+- Ask Claude questions in plain language; it retrieves and reasons for you.
+- Tell it to remember things — "note that we decided X" — and it calls `put_page`.
+- The terminal `gbrain` commands are still there for when Claude is not in the loop.
+
+You built a filing cabinet and handed Claude the key.
+
+## What actually makes the answers better
+
+Once Claude is the one writing, the chat model stops being the lever. Two other
+things take over, and it is worth being clear about which.
+
+**Your notes are the first lever, and the biggest by far.**
+
+Retrieval can only surface what you actually wrote down. A thin brain gives thin
+answers, no matter how strong the models are. So the highest-return habit is simply
+capturing — a decision here, a fact there — until the pages exist to be found. A
+fuller brain beats a fancier model every time.
+
+**Retrieval quality is the second lever — and that is the embedding model, not the
+chat model.**
+
+Keep the split in mind: `search`/`query` find pages with `nomic-embed-text`, and
+that choice decides *which* pages Claude ever sees. If the right note is not in the
+results, Claude cannot use it — it never reached the prompt. So making Claude
+smarter about your brain is really about helping it *find* the right page, which is
+the embedding model's job.
+
+`nomic-embed-text` (768 dimensions) is a solid default. When you outgrow it, the
+usual step up is **`bge-m3`** (1024 dimensions): multilingual, and noticeably
+better at pulling the right page out of a large or messy brain. (`mxbai-embed-large`
+is a middle option; `bge-m3` is the one worth knowing.)
+
+The catch: this is not a config toggle. The vector width — 768 for nomic — is baked
+into the database column at init time, so moving to a 1024-dimension model means
+wiping and re-embedding. Export first so nothing is lost:
+
+```bash
+gbrain export --dir ~/brain-backup     # save your pages as markdown
+ollama pull bge-m3
+mv ~/.gbrain/brain.pglite ~/.gbrain/brain.pglite.bak
+gbrain init --pglite --embedding-model ollama:bge-m3 --embedding-dimensions 1024
+gbrain import ~/brain-backup           # re-embed every page with the new model
+```
+
+When is it worth it? When you have thousands of notes, or you write in more than
+one language, or search starts missing things you know are in there. Not on day
+one — on day one, `nomic-embed-text` plus the habit of capturing is the whole game.
+
+(gbrain can also add a *reranker* — a second pass that re-orders the top hits for
+precision — but that is a later refinement. The embedding model and your notes are
+where the real gains live.)
+
+## Teaching Claude to write good notes
+
+If notes are the biggest lever, the obvious next question is: will Claude write good
+ones on its own?
+
+Partly. Left to the three-line brain-first protocol, it *will* save things — but the
+quality drifts. It might dump a whole conversation into one page, invent
+inconsistent slugs, or forget to link anything. Serviceable, not great. It does not
+magically write clean notes just because the tool is there.
+
+Three things shape note quality — one you add, two gbrain already does.
+
+**What you add: note conventions in `CLAUDE.md`.**
+
+The same file that tells Claude to search first can tell it *how* to write. Extend
+the protocol:
+
+```markdown
+## Writing to the brain
+When you save a page with put_page:
+- One idea per page. Capture the specific decision or fact and the *why* — not a
+  whole conversation.
+- Namespace the slug by kind: people/<name>, companies/<name>, decisions/<slug>,
+  notes/<slug>.
+- Set an accurate type (note, person, company, decision) so it fits the schema.
+- Link related pages with [[slug]] — a decision links to the people and projects it
+  touches.
+- Search first and update an existing page instead of creating a duplicate.
+- Keep my exact wording for decisions and quotes; don't paraphrase away the specifics.
+```
+
+Now the agent files things the way you would, and the brain stays navigable instead
+of turning into a pile.
+
+**What gbrain already does #1: it publishes its own filing rules.**
+
+Because `mcp.publish_skills` is on, gbrain exposes `list_skills` / `get_skill` over
+MCP — the agent can ask the brain how *it* wants pages filed, and gbrain answers with
+its schema conventions. So you are mostly reinforcing habits the brain already
+advertises, not inventing them from scratch.
+
+**What gbrain already does #2: it improves the notes over time, on its own.**
+
+gbrain has an overnight maintenance pass — the "dream cycle" (`gbrain dream` once, or
+`gbrain autopilot --install` to run it continuously). It dedupes people pages, fixes
+broken citations, and wires up links you never made by hand. So even notes you wrote
+sloppily get tidied while you sleep. This one *does* use the chat model — so the
+dream cycle is exactly where a local qwen, or a bigger model, actually earns its keep
+(unlike live retrieval, which never touches it).
+
+So the recipe for good notes: add a few conventions to `CLAUDE.md` for quality as
+they are written, lean on gbrain's published rules, and let the dream cycle polish
+the pile over time.
+
 ## The honest tradeoffs
 
 Real understanding includes the limits, so here they are.
