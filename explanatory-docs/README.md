@@ -1,9 +1,17 @@
 # explanatory-docs
 
-One short doc per setup step. Each explains *how the step works* — where the
-work runs, what data moves, what gets stored — not just the command to copy.
+Short docs that explain *how each piece works* — where the work runs, what data
+moves, what gets stored — not just the command to copy. The numbered setup docs
+each line up with one commit in this repo.
 
-Each doc lines up with one commit in this repo.
+**Read these first:**
+
+| Doc | What |
+| --- | --- |
+| `00-what-is-gbrain.md` | What gbrain is and why you would use it |
+| `08-using-gbrain.md` | How to use it, locally (CLI) and globally (agent/gstack) |
+
+**The setup, step by step:**
 
 | Doc | Step |
 | --- | --- |

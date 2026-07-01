@@ -7,6 +7,21 @@ no Anthropic key, no cloud Postgres.
 
 Built and verified on an **Apple M5, 32 GB**.
 
+## What is gbrain?
+
+gbrain is a searchable memory that answers questions about your own notes — and
+cites the note it used. Not a note app, not a generic chatbot: you feed it
+decisions, people, meetings, and documents, and later ask "what did we decide
+about X?" and get a cited answer built from *your* pages, not the internet. When
+it doesn't know, it says so.
+
+Why bother: your context stops evaporating, you ask across everything at once,
+and (wired into a coding agent) it gives that agent a memory so it stops
+re-asking what it could look up. Full "what it is / why / when it's not worth it"
+in [`explanatory-docs/00-what-is-gbrain.md`](explanatory-docs/00-what-is-gbrain.md);
+how to actually use it in
+[`explanatory-docs/08-using-gbrain.md`](explanatory-docs/08-using-gbrain.md).
+
 ## What each piece does
 
 ```
