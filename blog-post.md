@@ -430,16 +430,37 @@ environment — it does not read your `~/.zshrc`. Skip the flags and brain *sear
 still works (embeddings need no env), but *synthesis* over MCP falls back to "no
 LLM available." The flags hand the local route straight to the subprocess.
 
-Then teach the agent to use it, by pasting this into `CLAUDE.md`:
+Then teach the agent to *use* it. This is the step people skip — and without it the
+tools just sit there. The agent can see them, but it will not reach for them on its
+own; you would have to say "search my brain" every single time. The fix is a few
+lines in a `CLAUDE.md` file, which Claude Code reads at the start of every session.
+
+Where you put the file decides how far it reaches:
+
+- `~/.claude/CLAUDE.md` — your user file, loaded in *every* project. Best for a
+  personal brain, and it matches a user-scope MCP.
+- `./CLAUDE.md` in a repo — scoped to just that project.
+
+Create the file if it does not exist, and paste in the protocol. Here is exactly
+how it looks:
 
 ```markdown
-## Brain-first protocol
-You have a knowledge brain over MCP. Before answering about people, companies,
-decisions, or past context: (1) search/query the brain first; (2) write new
-decisions or ideas back with put_page; (3) cite the page you used.
+## gbrain — brain-first protocol
+You have a personal knowledge brain connected over MCP (tools: search, query,
+put_page). Use it:
+1. Search first. Before answering about people, companies, decisions, projects, or
+   past context, call search/query against the brain. If it has the answer, use it
+   and cite the page — don't ask what you can retrieve.
+2. Write back. When I make a decision or mention a new person/company/idea worth
+   keeping, save it with put_page.
+3. Cite. Name the page you used.
 ```
 
-Now the agent searches before it asks you, and writes decisions back as you work.
+That is the whole thing — one markdown heading and three rules. On the next session
+start, Claude reads it and begins reaching for the brain on its own: searching
+before it asks you, writing decisions back as you work. (You can go further and add
+note-quality rules to the same file — that is the "Teaching Claude to write good
+notes" section below.)
 If you use [gstack](https://github.com/garrytan/gstack), two skills automate the
 whole thing: `/setup-gbrain` does the wire-up and writes that protocol for you,
 and `/sync-gbrain` indexes a code repo so `gbrain search` works semantically
